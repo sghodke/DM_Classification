@@ -14,4 +14,8 @@ public class DoubleData implements Data {
 	public Double getData() {
 		return data;
 	}
+
+	public String toString() {
+		return Double.toString(data);
+	}
 }

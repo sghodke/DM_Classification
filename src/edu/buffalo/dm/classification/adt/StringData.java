@@ -14,5 +14,9 @@ public class StringData implements Data {
 	public String getData() {
 		return data;
 	}
+	
+	public String toString() {
+		return data;
+	}
 
 }

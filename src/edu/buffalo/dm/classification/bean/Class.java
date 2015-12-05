@@ -9,7 +9,7 @@ import java.util.List;
 public class Class {
 
 	private int classId;
-	private String classLabel;
+	private String classLabel;	// unused for now
 	private List<Sample> samples;
 	
 	public Class(int classId) {

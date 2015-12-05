@@ -4,5 +4,6 @@
 package edu.buffalo.dm.classification.adt;
 
 public interface Data {
-
+	
+	public String toString();
 }

@@ -33,12 +33,14 @@ public class Parser {
 			while((data = br.readLine()) != null) {
 				samples.add(generateSample(data, sampleId++));
 			}
-
+			ClassificationUtil.computeFeatures(samples);
 		} catch (IOException e) {
 			e.printStackTrace();
 		} finally {
 			try {
-				br.close();
+				if(br != null) {
+					br.close();
+				}
 			} catch (IOException e) {
 				e.printStackTrace();
 			}

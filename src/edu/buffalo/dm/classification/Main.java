@@ -6,7 +6,9 @@ package edu.buffalo.dm.classification;
 import java.util.List;
 import java.util.Scanner;
 
+import edu.buffalo.dm.classification.bean.Node;
 import edu.buffalo.dm.classification.bean.Sample;
+import edu.buffalo.dm.classification.model.DecisionTree;
 import edu.buffalo.dm.classification.util.Parser;
 
 public class Main {
@@ -37,6 +39,7 @@ public class Main {
 	        		break;
 	        	
 	        	case "3":	// Decision Tree
+	        		runDT();
 	        		break;
 	        		
 	        	case "4":	// New file
@@ -58,8 +61,12 @@ public class Main {
 	/**
 	 * Decision tree
 	 */
+	@SuppressWarnings("unused")
 	private static void runDT() {
-		
+		long startTime = System.currentTimeMillis();
+		Node root = new DecisionTree().classify(samples);
+		long endTime = System.currentTimeMillis();
+		System.out.println("Execution Time: " + ((double)(endTime - startTime)/1000) + "seconds");
 	}
 
 }
