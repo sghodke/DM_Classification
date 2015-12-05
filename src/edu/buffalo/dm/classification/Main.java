@@ -9,6 +9,8 @@ import java.util.Scanner;
 import edu.buffalo.dm.classification.bean.Node;
 import edu.buffalo.dm.classification.bean.Sample;
 import edu.buffalo.dm.classification.model.DecisionTree;
+import edu.buffalo.dm.classification.util.ClassificationUtil;
+import edu.buffalo.dm.classification.util.Measure;
 import edu.buffalo.dm.classification.util.Parser;
 
 public class Main {
@@ -50,7 +52,7 @@ public class Main {
 	        	default:
 	        		System.out.println("Select valid choice...");
 	        	}
-	        	
+	        	ClassificationUtil.resetData(samples);
 			}
 		} catch (Exception e) {
 			System.err.println(e.getMessage());
@@ -61,12 +63,30 @@ public class Main {
 	/**
 	 * Decision tree
 	 */
-	@SuppressWarnings("unused")
 	private static void runDT() {
 		long startTime = System.currentTimeMillis();
-		Node root = new DecisionTree().classify(samples);
+		int totalSamples = samples.size();
+		int splitIndex = new Double(totalSamples * 0.7).intValue();
+		List<Sample> trainSamples = samples.subList(0, splitIndex);
+		List<Sample> testSamples = samples.subList(splitIndex, totalSamples);
+		DecisionTree dt = new DecisionTree();
+		Node root = dt.generateTree(trainSamples);
+		dt.classifySamples(root, testSamples);
+		display(testSamples);
+		double fMeasure = Measure.fMeasure(testSamples);
+		System.out.println("SplitIndex: " + splitIndex + "\nF-Measure: " + fMeasure);
 		long endTime = System.currentTimeMillis();
 		System.out.println("Execution Time: " + ((double)(endTime - startTime)/1000) + "seconds");
+	}
+	
+	private static void display(List<Sample> samples) {
+		int i = 25;
+		for(Sample sample: samples) {
+			System.out.println(sample.getSampleId() + "\t" + sample.getGroundTruthClassId() + "\t" + sample.getClassId());
+			if(i-- < 0) {
+				break;
+			}
+		}
 	}
 
 }

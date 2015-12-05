@@ -12,6 +12,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
+import edu.buffalo.dm.classification.adt.Data;
+import edu.buffalo.dm.classification.adt.DoubleData;
 import edu.buffalo.dm.classification.bean.Feature;
 import edu.buffalo.dm.classification.bean.Node;
 import edu.buffalo.dm.classification.bean.Sample;
@@ -22,7 +24,7 @@ public class DecisionTree {
 	private static Set<Integer> classIds;
 	private static List<Feature> features;
 	
-	public Node classify(List<Sample> samples) {
+	public Node generateTree(List<Sample> samples) {
 		features = ClassificationUtil.getFeatures();
 		classIds = ClassificationUtil.getClassIds();
 		Node root = new Node(samples);
@@ -33,6 +35,38 @@ public class DecisionTree {
 		return root;
 	}
 
+	/**
+	 * Classify given samples to appropriate classes based on built tree
+	 * @param samples
+	 */
+	public void classifySamples(Node root, List<Sample> samples) {
+		for(Sample sample: samples) {
+			classifySample(root, sample);
+		}
+	}
+	
+	/**
+	 * Recursively find and assign suitable class for the given sample
+	 * @param node
+	 * @param sample
+	 */
+	private void classifySample(Node node, Sample sample) {
+		if(node == null) {
+			return;
+		}
+		while(node.getChildren() != null && node.getChildren().size() != 0) {
+			Feature splitFeature = node.getSplitFeature();
+			Data splitCriteria = splitFeature.getSplitCriteria();
+			if(Double.parseDouble(sample.getFeatures().get(splitFeature.getFeatureId()).toString()) < Double.parseDouble(splitCriteria.toString())) {
+				node = node.getChildren().first();
+			} else {
+				node = node.getChildren().last();
+			}
+		}
+		int classId = getMostMatchingClassId(node);
+		sample.setClassId(classId);
+	}
+	
 	/**
 	 * Recursively build a decision tree for given samples
 	 * @param node
@@ -48,7 +82,7 @@ public class DecisionTree {
 			return node;
 		}
 		node.setSplitFeature(feature);
-		double splitValue = (feature.getMax() + feature.getMin()) / 2;
+		double splitValue = Double.parseDouble(feature.getSplitCriteria().toString());
 		List<Map<Integer, Integer>> classIdsList = new ArrayList<>();
 		classIdsList.add(new HashMap<>());
 		classIdsList.add(new HashMap<>());
@@ -95,7 +129,9 @@ public class DecisionTree {
 			}
 			classIdsSet1 = new HashMap<Integer, Integer>();
 			classIdsSet2 = new HashMap<Integer, Integer>();
-			double splitValue = (feature.getMax() + feature.getMin()) / 2;
+			//double splitValue = (feature.getMax() + feature.getMin()) / 2;
+			double splitValue = getBestSplitValue(samples, i);
+			feature.setSplitCriteria(new DoubleData(splitValue));
 			List<List<Sample>> splitLists = getSplitLists(samples, splitValue, i, classIdsSet1, classIdsSet2);
 			
 			set1 = new ArrayList<Sample>();
@@ -155,6 +191,44 @@ public class DecisionTree {
 	}
 	
 	/**
+	 * Get best split value for given feature id
+	 * @param samples
+	 * @param featureId
+	 * @param classIdsSet1
+	 * @param classIdsSet2
+	 * @return
+	 */
+	private static double getBestSplitValue(List<Sample> samples, int featureId) {
+		Feature feature = features.get(featureId);
+		double min = feature.getMin(), max = feature.getMax();
+		double diff = max - min;
+		double incr = diff / 6;
+		Map<Integer, Integer> classIdsSet1, classIdsSet2;
+		List<Sample> set1, set2;
+		double gini = Double.MAX_VALUE;
+		double optimumSplitValue = min;
+		for(int i=0; i<5; i++) {
+			classIdsSet1 = new HashMap<>();
+			classIdsSet2 = new HashMap<>();
+			double splitValue = min + incr;
+			List<List<Sample>> splitLists = getSplitLists(samples, splitValue, featureId, classIdsSet1, classIdsSet2);
+			set1 = new ArrayList<Sample>();
+			set2 = new ArrayList<Sample>();
+			if(splitLists.size() > 1) {
+				set1 = splitLists.get(0);
+				set2 = splitLists.get(1);
+			}
+			double giniSplit = getGiniSplit(set1.size(), set2.size(), classIdsSet1, classIdsSet2);
+			if(giniSplit < gini) {
+				optimumSplitValue = splitValue;
+				gini = giniSplit;
+			}
+		}
+		
+		return optimumSplitValue;
+	}
+	
+	/**
 	 * Calculate gini index of the split 
 	 * @param n1
 	 * @param n2
@@ -207,5 +281,30 @@ public class DecisionTree {
 		}
 		double giniRoot = getGiniNode(samples.size(), classIdsSet);
 		return giniRoot;
+	}
+	
+	/**
+	 * Calculate best matching class for given node to classify sample accordingly
+	 * @param node
+	 * @return
+	 */
+	private static int getMostMatchingClassId(Node node) {
+		List<Sample> samples = node.getSamples();
+		List<Integer> classCount = new ArrayList<>();
+		for(int i=0; i<classIds.size(); i++) {
+			classCount.add(0);
+		}
+		for(Sample sample: samples) {
+			int count = classCount.get(sample.getGroundTruthClassId());
+			classCount.set(sample.getGroundTruthClassId(), ++count);
+		}
+		int bestMatchId = -1, maxCount = -1;
+		for(int i=0; i<classCount.size(); i++) {
+			if(classCount.get(i) > maxCount) {
+				bestMatchId = i;
+				maxCount = classCount.get(i);
+			}
+		}
+		return bestMatchId;
 	}
 }

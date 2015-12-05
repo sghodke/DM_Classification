@@ -68,6 +68,19 @@ public class ClassificationUtil {
 		
 	}
 	
+	/**
+	 * Resets classification and other info for next use
+	 * @param samples
+	 */
+	public static void resetData(List<Sample> samples) {
+		for(Sample sample: samples) {
+			sample.setClassId(-1);
+		}
+		for(Feature feature: features) {
+			feature.setSelected(false);
+		}
+	}
+	
 	public static List<Feature> getFeatures() {
 		return features;
 	}

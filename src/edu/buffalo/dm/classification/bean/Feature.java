@@ -22,6 +22,7 @@ public class Feature {
 	// valid if the feature is ordinal/nominal
 	private Set<String> categories;
 	private boolean selected;
+	private Data splitCriteria;
 	
 	public Feature(int featureId, String type) {
 		setFeatureId(featureId);
@@ -83,5 +84,10 @@ public class Feature {
 	public void setSelected(boolean selected) {
 		this.selected = selected;
 	}
-
+	public Data getSplitCriteria() {
+		return splitCriteria;
+	}
+	public void setSplitCriteria(Data splitCriteria) {
+		this.splitCriteria = splitCriteria;
+	}
 }
