@@ -22,9 +22,7 @@ public class ClassificationUtil {
 	private static List<Feature> features;
 	// ground truth class ids
 	private static Set<Integer> classIds;
-	static {
-		features = new ArrayList<Feature>();
-	}
+	
 
 	/**
 	 * Compute data for all features of the given samples
@@ -33,6 +31,7 @@ public class ClassificationUtil {
 	 * @param samples
 	 */
 	public static void computeFeatures(List<Sample> samples) {
+		features = new ArrayList<>();
 		boolean isFirst = true;
 		classIds = new HashSet<Integer>();
 		

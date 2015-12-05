@@ -48,7 +48,7 @@ public class Measure {
 				}
 			}
 		}
-		fMeasure = (double)a / (b+c);
+		fMeasure = (double)a / (a+b+c);
 		return fMeasure;
 	}
 }

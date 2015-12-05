@@ -4,10 +4,11 @@
 package edu.buffalo.dm.classification.bean;
 
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
-import java.util.TreeSet;
 
 /**
  * Class to hold nodes for decision tree
@@ -16,7 +17,7 @@ public class Node {
 
 	private List<Sample> samples;
 	private Node parent;
-	private TreeSet<Node> children;
+	private Map<Integer, Node> children;
 	private Set<Integer> classIds;
 	private Feature splitFeature;
 	double giniIndex;
@@ -24,13 +25,19 @@ public class Node {
 	public Node(List<Sample> samples) {
 		setSamples(samples);
 		setParent(null);
-		setChildren(new TreeSet<Node>(new GiniComparator()));
+		setChildren(new HashMap<Integer, Node>());
 		setClassIds(new HashSet<Integer>());
 	}
 	
-	public void addChild(Node child) {
-		children.add(child);
+	public void addChild(int n, Node child) {
+		children.put(n, child);
 	}
+	/*
+	public void setChildren(int n) {
+		for(int i=0; i<n; i++) {
+			children.add(new Node());
+		}
+	}*/
 	
 	public List<Sample> getSamples() {
 		return samples;
@@ -44,10 +51,10 @@ public class Node {
 	public void setParent(Node parent) {
 		this.parent = parent;
 	}
-	public TreeSet<Node> getChildren() {
+	public Map<Integer, Node> getChildren() {
 		return children;
 	}
-	public void setChildren(TreeSet<Node> children) {
+	public void setChildren(Map<Integer, Node> children) {
 		this.children = children;
 	}
 	public Set<Integer> getClassIds() {
@@ -72,6 +79,7 @@ public class Node {
 
 /**
  * Add child nodes based on gini index
+ * (unused for now)
  */
 class GiniComparator implements Comparator<Node> {
 	@Override

@@ -45,6 +45,9 @@ public class Main {
 	        		break;
 	        		
 	        	case "4":	// New file
+	    			System.out.println("Enter filename (case-sensitive): ");
+	        		filename = scanner.next();
+	        		samples = Parser.readData(PATH + filename);
 	        		break;
 	        		
 	        	case "5":	// Exit
@@ -66,7 +69,7 @@ public class Main {
 	private static void runDT() {
 		long startTime = System.currentTimeMillis();
 		int totalSamples = samples.size();
-		int splitIndex = new Double(totalSamples * 0.7).intValue();
+		int splitIndex = new Double(totalSamples * 0.7d).intValue();
 		List<Sample> trainSamples = samples.subList(0, splitIndex);
 		List<Sample> testSamples = samples.subList(splitIndex, totalSamples);
 		DecisionTree dt = new DecisionTree();
