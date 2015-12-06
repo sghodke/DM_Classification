@@ -52,6 +52,10 @@ public class Main {
 	        		
 	        	case "5":	// Exit
 	        		System.exit(0);
+	        		
+	        	case "6":	// weka
+	        		break;
+	        		
 	        	default:
 	        		System.out.println("Select valid choice...");
 	        	}
@@ -70,18 +74,20 @@ public class Main {
 		long startTime = System.currentTimeMillis();
 		int totalSamples = samples.size();
 		int splitIndex = new Double(totalSamples * 0.7d).intValue();
+		//Collections.shuffle(samples);
 		List<Sample> trainSamples = samples.subList(0, splitIndex);
 		List<Sample> testSamples = samples.subList(splitIndex, totalSamples);
 		DecisionTree dt = new DecisionTree();
 		Node root = dt.generateTree(trainSamples);
 		dt.classifySamples(root, testSamples);
-		display(testSamples);
-		double fMeasure = Measure.fMeasure(testSamples);
-		System.out.println("SplitIndex: " + splitIndex + "\nF-Measure: " + fMeasure);
+		//display(testSamples);
+		double accuracy = Measure.accuracy(testSamples);
+		System.out.println("SplitIndex: " + splitIndex + "\nAccuracy: " + accuracy);
 		long endTime = System.currentTimeMillis();
-		System.out.println("Execution Time: " + ((double)(endTime - startTime)/1000) + "seconds");
+		System.out.println("Execution Time: " + ((double)(endTime - startTime)/1000) + " seconds");
 	}
 	
+	@SuppressWarnings("unused")
 	private static void display(List<Sample> samples) {
 		int i = 25;
 		for(Sample sample: samples) {

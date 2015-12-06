@@ -18,20 +18,28 @@ import edu.buffalo.dm.classification.bean.Feature;
 import edu.buffalo.dm.classification.bean.Node;
 import edu.buffalo.dm.classification.bean.Sample;
 import edu.buffalo.dm.classification.util.ClassificationUtil;
+import edu.buffalo.dm.classification.util.Measure;
 
 public class DecisionTree {
 	// set of ground truth class ids
 	private static Set<Integer> classIds;
 	private static List<Feature> features;
 	
+	private static int totalSamples;
+	// testing purpose
+	private static int numberOfNodes;
+	
 	public Node generateTree(List<Sample> samples) {
+		numberOfNodes = 1;
+		totalSamples = samples.size();
 		features = ClassificationUtil.getFeatures();
 		classIds = ClassificationUtil.getClassIds();
 		Node root = new Node(samples);
 		root.setParent(null);
 		root.setClassIds(classIds);
-		root.setGiniIndex(getGiniRoot(samples));
+		root.setGiniIndex(Measure.getGiniRoot(samples));
 		root = buildTree(root, samples);
+		System.out.println("Total nodes: " + numberOfNodes);
 		return root;
 	}
 
@@ -54,15 +62,15 @@ public class DecisionTree {
 		if(node == null) {
 			return;
 		}
-		while(node.getChildren() != null && node.getChildren().size() != 0) {
+		while(node.getChildren() != null && node.getChildren().keySet().size() != 0) {
 			Feature splitFeature = node.getSplitFeature();
 			//Data splitCriteria = splitFeature.getSplitCriteria();
 			int childNumber = 0;
 			String sampleFeatureData = sample.getFeatures().get(splitFeature.getFeatureId()).toString();
 			if("STRING".equals(splitFeature.getType())) {
-				childNumber = getSuitableInterval(sampleFeatureData, splitFeature.getCategories());
+				childNumber = ClassificationUtil.getSuitableInterval(sampleFeatureData, splitFeature.getCategories());
 			} else {
-				childNumber = getSuitableInterval(Double.parseDouble(sampleFeatureData), splitFeature.getMin(), splitFeature.getMax(), INTERVALS_FOR_CONTINUOUS_DATA);
+				childNumber = ClassificationUtil.getSuitableInterval(Double.parseDouble(sampleFeatureData), splitFeature.getMin(), splitFeature.getMax(), INTERVALS_FOR_CONTINUOUS_DATA);
 			}
 			Node childNode = node.getChildren().get(childNumber);
 			if(childNode != null) {
@@ -85,6 +93,17 @@ public class DecisionTree {
 		if(node.getClassIds().size() < 2) {
 			return node;
 		}
+		
+		// if all samples belong to same class, do not split this node
+		if(node.getClassIds().size() == 1) {
+			return node;
+		}
+		/*
+		// if number of samples is < 2% of total samples, do not split this node
+		if(samples.size() < new Double(0.02*totalSamples).intValue()) {
+			return node;
+		}*/
+		
 		Feature feature = getBestSplitFeature(node, samples);
 		if(feature == null) {
 			return node;
@@ -92,11 +111,24 @@ public class DecisionTree {
 		node.setSplitFeature(feature);
 		Map<Integer, Map<Integer, Integer>> childrenClassSplits = new HashMap<>();
 		Map<Integer, List<Sample>> splitLists = getSplitLists(samples, feature, childrenClassSplits);
+		
+		double nodeGini = node.getGiniIndex();
+		boolean smallerGini = false;
+		boolean doNotSplit = false;
+		numberOfNodes += splitLists.keySet().size();
 		for(int i: splitLists.keySet()) {
 			List<Sample> childSamples = splitLists.get(i);
+			/*if(childSamples.size() >= new Double(0.9*samples.size()).intValue()) {
+				doNotSplit = true;
+				break;
+			}*/
+				
 			Node child = new Node(childSamples);
 			child.setParent(node);
-			double childGini = getGiniNode(childSamples.size(), childrenClassSplits.get(i));
+			double childGini = Measure.getGiniNode(childSamples.size(), childrenClassSplits.get(i));
+			if(childGini < nodeGini) {
+				smallerGini = true;
+			}
 			child.setGiniIndex(childGini);
 			Set<Integer> childClassIds = new HashSet<>();
 			for(Sample sample: childSamples) {
@@ -105,6 +137,15 @@ public class DecisionTree {
 			child.setClassIds(childClassIds);
 			node.addChild(i, child);
 		}
+
+		// check if any child node has better gini (less) than current node, else do not expand this node
+		if(!smallerGini || doNotSplit) {
+			node.setChildren(new HashMap<>());
+			feature.setSelected(false);
+			numberOfNodes -= splitLists.keySet().size();
+			return node;
+		}
+		
 		List<Node> children = new ArrayList<Node>(node.getChildren().values());
 		Collections.sort(children, new GiniComparator());
 		Iterator<Node> iterator = children.iterator();
@@ -134,7 +175,7 @@ public class DecisionTree {
 			}
 			childrenClassSplits = new HashMap<>();
 			Map<Integer, List<Sample>> splitLists = getSplitLists(samples, feature, childrenClassSplits);
-			double giniSplit = getGiniSplit(splitLists, childrenClassSplits);
+			double giniSplit = Measure.getGiniSplit(splitLists, childrenClassSplits);
 			if(giniSplit < gini) {
 				gini = giniSplit;
 				bestFeature = feature;
@@ -162,9 +203,9 @@ public class DecisionTree {
 			Data featureData = sample.getFeatures().get(feature.getFeatureId());
 			int childNumber = 0;
 			if(feature.getType() == "STRING") {
-				childNumber = getSuitableInterval(featureData.toString(), feature.getCategories());
+				childNumber = ClassificationUtil.getSuitableInterval(featureData.toString(), feature.getCategories());
 			} else {
-				childNumber = getSuitableInterval(Double.parseDouble(featureData.toString()), feature.getMin(), feature.getMax(), INTERVALS_FOR_CONTINUOUS_DATA);
+				childNumber = ClassificationUtil.getSuitableInterval(Double.parseDouble(featureData.toString()), feature.getMin(), feature.getMax(), INTERVALS_FOR_CONTINUOUS_DATA);
 			}
 			
 			List<Sample> childSamples;
@@ -229,60 +270,6 @@ public class DecisionTree {
 	}
 	*/
 	
-	/**
-	 * Calculate gini index of the split
-	 * @param childrenSamplesCount
-	 * @param childrenClassSplits
-	 * @return
-	 */
-	private static double getGiniSplit(Map<Integer, List<Sample>> childrenSamplesCount, Map<Integer, Map<Integer, Integer>> childrenClassSplits) {
-		double gini = 0d;
-		int totalSamples = 0;
-		for(int i: childrenSamplesCount.keySet()) {
-			int n = childrenSamplesCount.get(i).size();
-			Map<Integer, Integer> classIdsSet = childrenClassSplits.get(i);
-			gini += n * getGiniNode(n, classIdsSet);
-			totalSamples += n;
-		}
-		return (gini / totalSamples);
-	}
-	
-	/**
-	 * Calculate gini index of the given node
-	 * @param n
-	 * @param classIdsSet
-	 * @return
-	 */
-	private static double getGiniNode(int n, Map<Integer, Integer> classIdsSet) {
-		double giniNode;
-		double sum = 0d;
-		for(Integer classId: classIdsSet.keySet()) {
-			int count = classIdsSet.get(classId);
-			sum += Math.pow(((double)count/n), 2);
-		}
-		giniNode = 1 - sum;
-		return giniNode;
-	}
-	
-	/**
-	 * Calculate gini index of root node
-	 * @param samples
-	 * @return
-	 */
-	private static double getGiniRoot(List<Sample> samples) {
-		Map<Integer, Integer> classIdsSet = new HashMap<Integer, Integer>();
-		for(Sample sample: samples) {
-			int classId = sample.getGroundTruthClassId();
-			Integer count;
-			if((count = classIdsSet.get(classId)) == null) {
-				classIdsSet.put(classId, 1);
-			} else {
-				classIdsSet.put(classId, ++count);
-			}
-		}
-		double giniRoot = getGiniNode(samples.size(), classIdsSet);
-		return giniRoot;
-	}
 	
 	/**
 	 * Calculate best matching class for given node to classify sample accordingly
@@ -309,40 +296,6 @@ public class DecisionTree {
 		return bestMatchId;
 	}
 	
-	/**
-	 * Get suitable interval for given value, based upon the number of intervals
-	 * @param value
-	 * @param min
-	 * @param max
-	 * @param intervals
-	 * @return
-	 */
-	private static int getSuitableInterval(double value, double min, double max, int intervals) {
-		double incr = (max - min) / intervals;
-		for(int i=0; i<intervals; i++) {
-			if((value > (min+i*incr)) && (value <= (min+(i+1)*incr))) {
-				return i;
-			}
-		}
-		return 0;
-	}
-	
-	/**
-	 * Get suitable interval for given value, matching the appropriate category
-	 * @param value
-	 * @param categories
-	 * @return
-	 */
-	private static int getSuitableInterval(String value, Set<String> categories) {
-		List<String> sortedList = new ArrayList<>(categories);
-		Collections.sort(sortedList);
-		for(int i=0; i<sortedList.size(); i++) {
-			if(sortedList.get(i).equalsIgnoreCase(value)) {
-				return i;
-			}
-		}
-		return 0;
-	}
 	
 	/**
 	 * Comparator to sort children in descending order based on gini index
@@ -359,5 +312,5 @@ public class DecisionTree {
 		}
 	}
 	
-	private static final int INTERVALS_FOR_CONTINUOUS_DATA = 5;
+	private static final int INTERVALS_FOR_CONTINUOUS_DATA = 4;
 }

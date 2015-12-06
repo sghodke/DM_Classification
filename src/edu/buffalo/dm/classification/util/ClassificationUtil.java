@@ -4,6 +4,7 @@
 package edu.buffalo.dm.classification.util;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -32,8 +33,8 @@ public class ClassificationUtil {
 	 */
 	public static void computeFeatures(List<Sample> samples) {
 		features = new ArrayList<>();
-		boolean isFirst = true;
 		classIds = new HashSet<Integer>();
+		boolean isFirst = true;
 		
 		for(Sample sample: samples) {
 			classIds.add(sample.getGroundTruthClassId());
@@ -78,6 +79,41 @@ public class ClassificationUtil {
 		for(Feature feature: features) {
 			feature.setSelected(false);
 		}
+	}
+	
+	/**
+	 * Get suitable interval for given value, based upon the number of intervals
+	 * @param value
+	 * @param min
+	 * @param max
+	 * @param intervals
+	 * @return
+	 */
+	public static int getSuitableInterval(double value, double min, double max, int intervals) {
+		double incr = (max - min) / intervals;
+		for(int i=0; i<intervals; i++) {
+			if((value > (min+i*incr)) && (value <= (min+(i+1)*incr))) {
+				return i;
+			}
+		}
+		return 0;
+	}
+	
+	/**
+	 * Get suitable interval for given value, matching the appropriate category
+	 * @param value
+	 * @param categories
+	 * @return
+	 */
+	public static int getSuitableInterval(String value, Set<String> categories) {
+		List<String> sortedList = new ArrayList<>(categories);
+		Collections.sort(sortedList);
+		for(int i=0; i<sortedList.size(); i++) {
+			if(sortedList.get(i).equalsIgnoreCase(value)) {
+				return i;
+			}
+		}
+		return 0;
 	}
 	
 	public static List<Feature> getFeatures() {

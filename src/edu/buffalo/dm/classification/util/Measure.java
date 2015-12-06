@@ -3,7 +3,9 @@
  */
 package edu.buffalo.dm.classification.util;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import edu.buffalo.dm.classification.bean.Sample;
 
@@ -16,12 +18,12 @@ public class Measure {
 	}
 
 	/**
-	 * Modified fMeasure based on provided datasets
+	 * Modified fMeasure (similar to accuracy) based on provided datasets
 	 * (Not foolproof or general)
 	 * @param samples
 	 * @return
 	 */
-	public static double fMeasure(List<Sample> samples) {
+	public static double accuracy(List<Sample> samples) {
 		double fMeasure = -1d;
 		int classes = ClassificationUtil.getClassIds().size();
 		confusionMatrix = new int[classes][classes];
@@ -50,5 +52,61 @@ public class Measure {
 		}
 		fMeasure = (double)a / (a+b+c);
 		return fMeasure;
+	}
+	
+
+	/**
+	 * Calculate gini index of the split
+	 * @param childrenSamplesCount
+	 * @param childrenClassSplits
+	 * @return
+	 */
+	public static double getGiniSplit(Map<Integer, List<Sample>> childrenSamplesCount, Map<Integer, Map<Integer, Integer>> childrenClassSplits) {
+		double gini = 0d;
+		int totalSamples = 0;
+		for(int i: childrenSamplesCount.keySet()) {
+			int n = childrenSamplesCount.get(i).size();
+			Map<Integer, Integer> classIdsSet = childrenClassSplits.get(i);
+			gini += n * getGiniNode(n, classIdsSet);
+			totalSamples += n;
+		}
+		return (gini / totalSamples);
+	}
+	
+	/**
+	 * Calculate gini index of the given node
+	 * @param n
+	 * @param classIdsSet
+	 * @return
+	 */
+	public static double getGiniNode(int n, Map<Integer, Integer> classIdsSet) {
+		double giniNode;
+		double sum = 0d;
+		for(Integer classId: classIdsSet.keySet()) {
+			int count = classIdsSet.get(classId);
+			sum += Math.pow(((double)count/n), 2);
+		}
+		giniNode = 1 - sum;
+		return giniNode;
+	}
+	
+	/**
+	 * Calculate gini index of root node
+	 * @param samples
+	 * @return
+	 */
+	public static double getGiniRoot(List<Sample> samples) {
+		Map<Integer, Integer> classIdsSet = new HashMap<Integer, Integer>();
+		for(Sample sample: samples) {
+			int classId = sample.getGroundTruthClassId();
+			Integer count;
+			if((count = classIdsSet.get(classId)) == null) {
+				classIdsSet.put(classId, 1);
+			} else {
+				classIdsSet.put(classId, ++count);
+			}
+		}
+		double giniRoot = getGiniNode(samples.size(), classIdsSet);
+		return giniRoot;
 	}
 }
