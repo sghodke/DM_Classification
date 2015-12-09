@@ -21,12 +21,15 @@ public class Node {
 	private Set<Integer> classIds;
 	private Feature splitFeature;
 	double giniIndex;
+	double maxMajority;
 	
 	public Node(List<Sample> samples) {
 		setSamples(samples);
 		setParent(null);
 		setChildren(new HashMap<Integer, Node>());
 		setClassIds(new HashSet<Integer>());
+		setGiniIndex(-1);
+		setMaxMajority(0);
 	}
 	
 	public void addChild(int n, Node child) {
@@ -74,6 +77,12 @@ public class Node {
 	}
 	public void setGiniIndex(double giniIndex) {
 		this.giniIndex = giniIndex;
+	}
+	public double getMaxMajority() {
+		return maxMajority;
+	}
+	public void setMaxMajority(double maxMajority) {
+		this.giniIndex = maxMajority;
 	}
 }
 

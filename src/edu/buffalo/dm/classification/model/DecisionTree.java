@@ -26,11 +26,13 @@ public class DecisionTree {
 	private static List<Feature> features;
 	
 	private static int totalSamples;
+	private static int treeDepth;
 	// testing purpose
 	private static int numberOfNodes;
 	
 	public Node generateTree(List<Sample> samples) {
 		numberOfNodes = 1;
+		treeDepth = 1;
 		totalSamples = samples.size();
 		features = ClassificationUtil.getFeatures();
 		classIds = ClassificationUtil.getClassIds();
@@ -90,6 +92,11 @@ public class DecisionTree {
 	 * @return
 	 */
 	private static Node buildTree(Node node, List<Sample> samples) {
+		
+		// restrict height of tree
+		if(treeDepth++ > 4) {
+			return node;
+		}
 		if(node.getClassIds().size() < 2) {
 			return node;
 		}
@@ -98,11 +105,11 @@ public class DecisionTree {
 		if(node.getClassIds().size() == 1) {
 			return node;
 		}
-		/*
+		
 		// if number of samples is < 2% of total samples, do not split this node
 		if(samples.size() < new Double(0.02*totalSamples).intValue()) {
 			return node;
-		}*/
+		}
 		
 		Feature feature = getBestSplitFeature(node, samples);
 		if(feature == null) {
@@ -118,10 +125,11 @@ public class DecisionTree {
 		numberOfNodes += splitLists.keySet().size();
 		for(int i: splitLists.keySet()) {
 			List<Sample> childSamples = splitLists.get(i);
-			/*if(childSamples.size() >= new Double(0.9*samples.size()).intValue()) {
+			// if 99% samples are contained at one child, do not partition this node
+			if(childSamples.size() >= new Double(0.99*samples.size()).intValue()) {
 				doNotSplit = true;
 				break;
-			}*/
+			}
 				
 			Node child = new Node(childSamples);
 			child.setParent(node);
@@ -146,13 +154,25 @@ public class DecisionTree {
 			return node;
 		}
 		
+		//setChildrenMajority(node.getChildren(), childrenClassSplits);
+		
 		List<Node> children = new ArrayList<Node>(node.getChildren().values());
-		Collections.sort(children, new GiniComparator());
+		Collections.sort(children, new GiniComparator(samples.size()));
+		//Collections.sort(children, new MajorityComparator());
 		Iterator<Node> iterator = children.iterator();
+		
+		/*while(iterator.hasNext()) {
+			Node child = iterator.next();
+			displayChildInfo(child);
+		}
+		System.out.println("========================================================\n");
+		iterator = children.iterator();
+		*/
 		while(iterator.hasNext()) {
 			Node child = iterator.next();
 			buildTree(child, child.getSamples());
 		}
+		treeDepth--;
 		return node;
 	}
 	
@@ -298,18 +318,62 @@ public class DecisionTree {
 	
 	
 	/**
-	 * Comparator to sort children in descending order based on gini index
+	 * Comparator to sort children in descending order based on weighted gini index
 	 */
 	static class GiniComparator implements Comparator<Node> {
+		int n;	// total samples for parent node
+		GiniComparator(int n) {
+			this.n = n;
+		}
 		@Override
 		public int compare(Node n1, Node n2) {
-			if(n1.getGiniIndex() > n2.getGiniIndex()) {
+			if((n1.getSamples().size() * n1.getGiniIndex() / n) > (n2.getSamples().size() * n2.getGiniIndex() / n)) {
 				return -1;
-			} else if(n1.getGiniIndex() < n2.getGiniIndex()) {
+			} else if((n1.getSamples().size() * n1.getGiniIndex() / n) < (n2.getSamples().size() * n2.getGiniIndex() / n)) {
 				return 1;
 			}
 			return 0;
 		}
+	}
+	
+	/**
+	 * Comparator to sort children in ascending order based on majority class samples
+	 */
+	static class MajorityComparator implements Comparator<Node> {
+		@Override
+		public int compare(Node n1, Node n2) {
+			if(n1.getMaxMajority() < n2.getMaxMajority()) {
+				return -1;
+			} else if(n1.getMaxMajority() > n2.getMaxMajority()) {
+				return 1;
+			}
+			return 0;
+		}
+	}
+	
+	@SuppressWarnings("unused")
+	private static void setChildrenMajority(Map<Integer, Node> children, Map<Integer, Map<Integer, Integer>> childrenClassSplits) {
+		double maxMajority = -1d;
+		Node child;
+		Map<Integer, Integer> childClassSplits;
+		for(int childId: children.keySet()) {
+			child = children.get(childId);
+			double childSamples = child.getSamples().size();
+			childClassSplits = childrenClassSplits.get(childId);
+			for(int classId: childClassSplits.keySet()) {
+				int classShare = childClassSplits.get(classId);
+				double classPercent = (double) classShare / childSamples;
+				if(classPercent > maxMajority) {
+					maxMajority = classPercent;
+				}
+			}
+			child.setMaxMajority(maxMajority);
+		}
+	}
+
+	@SuppressWarnings("unused")
+	private static void displayChildInfo(Node node) {
+		System.out.println(node.getSamples().size() + "\t" + node.getGiniIndex());
 	}
 	
 	private static final int INTERVALS_FOR_CONTINUOUS_DATA = 4;

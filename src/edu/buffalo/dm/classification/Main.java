@@ -3,7 +3,9 @@
  */
 package edu.buffalo.dm.classification;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Scanner;
 
 import edu.buffalo.dm.classification.bean.Node;
@@ -72,19 +74,39 @@ public class Main {
 	 */
 	private static void runDT() {
 		long startTime = System.currentTimeMillis();
+		DecisionTree dt = new DecisionTree();
+		/*
 		int totalSamples = samples.size();
-		int splitIndex = new Double(totalSamples * 0.7d).intValue();
-		//Collections.shuffle(samples);
+		int splitIndex = new Double(totalSamples * 0.9d).intValue();
+		Collections.shuffle(samples);
 		List<Sample> trainSamples = samples.subList(0, splitIndex);
 		List<Sample> testSamples = samples.subList(splitIndex, totalSamples);
-		DecisionTree dt = new DecisionTree();
 		Node root = dt.generateTree(trainSamples);
 		dt.classifySamples(root, testSamples);
 		//display(testSamples);
 		double accuracy = Measure.accuracy(testSamples);
 		System.out.println("SplitIndex: " + splitIndex + "\nAccuracy: " + accuracy);
+		*/
+		List<Sample> trainSamples, testSamples;
+		Node root;
+		int k = 10;
+		Map<Integer, List<List<Sample>>> crossValidationSplits = ClassificationUtil.getCrossValidationSplit(samples, k); 
+		double avgAccuracy = 0d;
+		for(int i: crossValidationSplits.keySet()) {
+			List<List<Sample>> validationSplit = crossValidationSplits.get(i);
+			trainSamples = validationSplit.get(0);
+			testSamples = validationSplit.get(1);
+			root = dt.generateTree(trainSamples);
+			dt.classifySamples(root, testSamples);
+			avgAccuracy += Measure.accuracy(testSamples);
+			ClassificationUtil.resetData(samples);
+		}
+		avgAccuracy /= k;
+		System.out.println("Average accuracy: " + avgAccuracy);
+
 		long endTime = System.currentTimeMillis();
 		System.out.println("Execution Time: " + ((double)(endTime - startTime)/1000) + " seconds");
+		
 	}
 	
 	@SuppressWarnings("unused")

@@ -18,12 +18,30 @@ public class Measure {
 	}
 
 	/**
+	 * Get accuracy of results
+	 * @param samples
+	 * @return
+	 */
+	public static double accuracy(List<Sample> samples) {
+		int match;
+		match = 0;
+		double accuracy = -1d;
+		for(Sample sample: samples) {
+			if(sample.getClassId() == sample.getGroundTruthClassId()) {
+				match++;
+			}
+		}
+		accuracy = (double) match / samples.size();
+		return accuracy;
+	}
+	
+	/**
 	 * Modified fMeasure (similar to accuracy) based on provided datasets
 	 * (Not foolproof or general)
 	 * @param samples
 	 * @return
 	 */
-	public static double accuracy(List<Sample> samples) {
+	public static double fMeasure(List<Sample> samples) {
 		double fMeasure = -1d;
 		int classes = ClassificationUtil.getClassIds().size();
 		confusionMatrix = new int[classes][classes];
@@ -52,6 +70,7 @@ public class Measure {
 		}
 		fMeasure = (double)a / (a+b+c);
 		return fMeasure;
+		
 	}
 	
 

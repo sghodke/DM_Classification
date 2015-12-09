@@ -5,8 +5,10 @@ package edu.buffalo.dm.classification.util;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import edu.buffalo.dm.classification.adt.Data;
@@ -80,6 +82,35 @@ public class ClassificationUtil {
 			feature.setSelected(false);
 		}
 	}
+	
+	
+	/**
+	 * Returns k cross validation splits specified by numOfFolds
+	 * @param samples
+	 * @param numOfFolds
+	 * @return
+	 */
+	public static Map<Integer, List<List<Sample>>> getCrossValidationSplit(List<Sample> samples, int numOfFolds) {
+		
+		Map<Integer, List<List<Sample>>> splitSamplesMap = new HashMap<>();
+		int totalSamples = samples.size();
+		int testSamples = new Double(totalSamples * 0.1d).intValue();
+		List<Sample> trainSet, testSet;
+		List<List<Sample>> validationSplitLists;
+		for(int i=0; i<numOfFolds; i++) {
+			testSet = samples.subList(i*testSamples, (i+1)*testSamples);
+			trainSet = new ArrayList<>(samples);
+			trainSet.removeAll(testSet);
+			validationSplitLists = new ArrayList<>();
+			validationSplitLists.add(trainSet);
+			validationSplitLists.add(testSet);
+			splitSamplesMap.put(i, validationSplitLists);
+		}
+		return splitSamplesMap;
+	}
+	
+	
+	
 	
 	/**
 	 * Get suitable interval for given value, based upon the number of intervals
