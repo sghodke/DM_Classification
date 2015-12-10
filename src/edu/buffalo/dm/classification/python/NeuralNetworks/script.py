@@ -15,7 +15,8 @@ mat_file_path = './mnist_all.mat'
 # CSV file path
 csv_file_path = 'backprop_results.csv'
 
-file_name = raw_input("Enter the filename:")
+#file_name = raw_input("Enter the filename:")
+file_name = 'project3_dataset1.txt'
 # Percentage of training-data that we'll use for validation
 validation_data_percentage = 15
 training_data_percentage = 70
@@ -67,20 +68,15 @@ def checkAndPreProcessData(data):
             col = data[:, index]
             l = createList(col)
             data[:, index] = l
-    print index
 
 
 def preprocess():
     start_time = time.time()
-    print("\n--------------------START - preprocess------------------")
-
     # Load the file as a numpy array
-
     data = np.loadtxt(file_name, dtype=str)
     checkAndPreProcessData(data)
     data = data.astype(dtype=float)
     num_of_examples = data.shape[0]
-    print data
     # calculating the variables for training,testing and validation
     training_size = round(num_of_examples * float(training_data_percentage / 100))
     validation_size = round(num_of_examples * float(validation_data_percentage / 100))
@@ -98,30 +94,22 @@ def preprocess():
     # creating the validation labels
     validation_label = validation_part[:, -1]
     validation_label = createLables(validation_label)
-    print "validation label shape", validation_label.shape
 
     # creating the test labels
     test_label = testing_part[:, -1]
     test_label = createLables(test_label)
-    print "Test label shape", test_label.shape
 
     # creating the training labels
     train_label = training_part[:, -1]
     train_label = createLables(train_label)
-    print "Train label shape", train_label.shape
 
     # crating the data
     train_data = training_part[:, :-1]
-    print  train_data.shape
     test_data = testing_part[:, :-1]
-    print  test_data.shape
     validation_data = validation_part[:, :-1]
-    print  validation_data.shape
 
     train_data, validation_data, test_data = doFeatureSelection(train_data, validation_data, test_data)
 
-    print("Time for preprocessing: ", time.time() - start_time)
-    print("--------------------END - preprocess------------------")
     return train_data, train_label, validation_data, validation_label, test_data, test_label
 
 
@@ -322,7 +310,6 @@ def nnObjFunction(params, *args):
     obj_grad = np.concatenate((grad_w1.flatten(), grad_w2.flatten()), 0)
 
     # print "obj_grad", obj_grad
-    print "obj_val", obj_val
 
     global run_count
     run_count += 1
@@ -374,6 +361,28 @@ def nnPredict(w1, w2, data):
     return labels
 
 
+def calculateVariousMeasures(train_label, predicted_label):
+    f1measure=precision=recall=accuracy=tp=tn=fp=fn=0
+    for x,y in np.c_[train_label,predicted_label]:
+        if x==1 and y==1:
+            tp+=1
+        elif x==1 and y==0:
+            fn+=1
+        elif x==0 and y==1:
+            fp+=1
+        else:
+            tn+=1
+    if tp!=0:
+        precision=tp/(tp+fp)
+        recall=tp/(tp+fn)
+        accuracy=(tp+tn)/(tp+tn+fp+fn)
+        f1measure=2*(precision*recall)/(precision+recall)
+    return precision,recall,f1measure,accuracy
+
+
+
+
+
 def runCode(initialWeights, args, opts, validation_data, validation_label, test_data, test_label):
     global run_count
     run_count = 0
@@ -403,6 +412,7 @@ def runCode(initialWeights, args, opts, validation_data, validation_label, test_
     # Find the accuracy on the TRAINING Dataset
     predicted_label = nnPredict(w1, w2, train_data)
     training_set_accuracy = 100 * np.mean((predicted_label == train_label).astype(float))
+    precision,recall,f1_measure,maccuracy=calculateVariousMeasures(train_label,predicted_label)
     # print('\n   Training set accuracy ==> ' + str(training_set_accuracy) + '%')
 
     # Find the accuracy on the VALIDATION Dataset
@@ -415,91 +425,43 @@ def runCode(initialWeights, args, opts, validation_data, validation_label, test_
     test_set_accuracy = 100 * np.mean((predicted_label == test_label).astype(float))
     # print('   Test set accuracy: ==> ' + str(test_set_accuracy) + '%')
 
-    return w1, w2, training_set_accuracy, validation_set_accuracy, test_set_accuracy
+    return w1, w2, training_set_accuracy, validation_set_accuracy, test_set_accuracy,precision,recall,f1_measure,maccuracy
 
 
 """************** Neural Network Script Starts here ********************************"""
 
 # Pickle file: Open it for writing
-
-overall_start_time = time.time()
-train_data, train_label, validation_data, validation_label, test_data, test_label = preprocess();
-
-run_count = 0
-
-# Set the number of nodes in the input layer (not including bias unit)
-n_input = train_data.shape[1];
-
-# Number of nodes in the output layer are fixed as 10, because we've got 10 digits
-n_class = 2;
-
-# === Make CSV file === #
+print('Neural Network Script Starts')
+start_time = time.time()
+no_of_validation=10
+i=0
+precision_sum=recall_sum=f1measure_sum=maccuracy_sum=0.0
+precision_max=recall_max=f1measure_max=maccuracy_max=0.0
 with open(csv_file_path, 'w') as csvfile:
-    writer = csv.DictWriter(csvfile,
-                            fieldnames=['lambda', 'n_hidden', 'training_set_accuracy', 'validation_set_accuracy',
-                                        'test_set_accuracy', 'runs', 'time'])
-    writer.writeheader()
+            writer = csv.DictWriter(csvfile,
+                                    fieldnames=['optimum_lambda', 'optimum_n_hidden', 'test_accuracy','training_accuracy'])
+            writer.writeheader()
+while i<no_of_validation:
+    overall_start_time = time.time()
+    train_data, train_label, validation_data, validation_label, test_data, test_label = preprocess();
 
-# ====== Train Neural Network ====== #
-optimum_w1 = None
-optimum_w2 = None
+    run_count = 0
 
-# ---- For different lambda values ---- #
-lambda_val = 0.0
-lambda_increment = 0.1
-n_hidden = 50
+    # Set the number of nodes in the input layer (not including bias unit)
+    n_input = train_data.shape[1];
 
-# Initialize the weights into some random matrices
-initial_w1 = initializeWeights(n_input, n_hidden);
-initial_w2 = initializeWeights(n_hidden, n_class);
+    # Number of nodes in the output layer are fixed as 2, because we've got 10 digits
+    n_class = 2;
 
-# Combine the 2 weight matrices into single column vector
-initialWeights = np.concatenate((initial_w1.flatten(), initial_w2.flatten()), 0)
 
-max_accuracy = 0.0
-optimum_lambda = 0.0
+    # ====== Train Neural Network ====== #
+    optimum_w1 = None
+    optimum_w2 = None
 
-while lambda_val <= 1.0:
-    code_start_time = time.time()
-    print '\nLambda = %.2f' % lambda_val
-
-    # Run the minimize function
-    args = (n_input, n_hidden, n_class, train_data, train_label, lambda_val)
-    w1, w2, training_set_accuracy, validation_set_accuracy, test_set_accuracy = runCode(initialWeights, args, opts,
-                                                                                        validation_data,
-                                                                                        validation_label, test_data,
-                                                                                        test_label)
-
-    # Print stuff to CSV
-    time_taken = (time.time() - code_start_time) / 60.0
-    with open(csv_file_path, 'a') as csvfile:
-        writer = csv.DictWriter(csvfile,
-                                fieldnames=['lambda', 'n_hidden', 'training_set_accuracy', 'validation_set_accuracy',
-                                            'test_set_accuracy', 'runs', 'time'])
-        writer.writerow({'lambda': lambda_val, 'n_hidden': n_hidden, 'training_set_accuracy': training_set_accuracy,
-                         'validation_set_accuracy': validation_set_accuracy, 'test_set_accuracy': test_set_accuracy,
-                         'runs': run_count, 'time': time_taken})
-
-    # Get the most optimum lambda value
-    if max_accuracy < test_set_accuracy:
-        max_accuracy = test_set_accuracy
-        optimum_lambda = lambda_val
-
-    # Increase the lambda value
-    lambda_val += lambda_increment
-
-# ---- For different n_hidden values ---- #
-lambda_val = optimum_lambda
-n_hidden = 10
-n_hidden_increment = 10
-n_hidden_upperlimit = 100
-
-max_accuracy = 0.0
-optimum_n_hidden = 0.0
-
-while n_hidden <= n_hidden_upperlimit:
-    code_start_time = time.time()
-    print '\nn_hidden = %d' % n_hidden
+    # ---- For different lambda values ---- #
+    lambda_val = 0.0
+    lambda_increment = 0.1
+    n_hidden = 50
 
     # Initialize the weights into some random matrices
     initial_w1 = initializeWeights(n_input, n_hidden);
@@ -508,37 +470,108 @@ while n_hidden <= n_hidden_upperlimit:
     # Combine the 2 weight matrices into single column vector
     initialWeights = np.concatenate((initial_w1.flatten(), initial_w2.flatten()), 0)
 
-    # Run the minimize function
-    args = (n_input, n_hidden, n_class, train_data, train_label, lambda_val)
-    w1, w2, training_set_accuracy, validation_set_accuracy, test_set_accuracy = runCode(initialWeights, args, opts,
-                                                                                        validation_data,
-                                                                                        validation_label, test_data,
-                                                                                        test_label)
+    max_accuracy = 0.0
+    optimum_lambda = 0.0
+    g_accuracy=0.0
+    g_lambda=0.0
+    g_units=0
+    g_tr_accuracy=0.0
+    while lambda_val <= 1.0:
+        code_start_time = time.time()
 
-    # Print stuff to CSV
-    time_taken = (time.time() - code_start_time) / 60.0
+        # Run the minimize function
+        args = (n_input, n_hidden, n_class, train_data, train_label, lambda_val)
+        w1, w2, training_set_accuracy, validation_set_accuracy, test_set_accuracy,precision,recall,f1measure,m_accuracy = runCode(initialWeights, args, opts,
+                                                                                            validation_data,
+                                                                                            validation_label, test_data,
+                                                                                            test_label)
+
+        # Print stuff to CSV
+        time_taken = (time.time() - code_start_time) / 60.0
+        if g_tr_accuracy < training_set_accuracy:
+            g_tr_accuracy=training_set_accuracy
+
+        # Get the most optimum lambda value
+        if max_accuracy < test_set_accuracy:
+            max_accuracy = test_set_accuracy
+            g_accuracy=max_accuracy
+            optimum_lambda = lambda_val
+            g_lambda=optimum_lambda
+
+        # Increase the lambda value
+        lambda_val += lambda_increment
+
+    # ---- For different n_hidden values ---- #
+    lambda_val = optimum_lambda
+    n_hidden = 10
+    n_hidden_increment = 10
+    n_hidden_upperlimit = 100
+
+    max_accuracy = 0.0
+    optimum_n_hidden = 0.0
+
+    while n_hidden <= n_hidden_upperlimit:
+        code_start_time = time.time()
+
+        # Initialize the weights into some random matrices
+        initial_w1 = initializeWeights(n_input, n_hidden);
+        initial_w2 = initializeWeights(n_hidden, n_class);
+
+        # Combine the 2 weight matrices into single column vector
+        initialWeights = np.concatenate((initial_w1.flatten(), initial_w2.flatten()), 0)
+
+        # Run the minimize function
+        args = (n_input, n_hidden, n_class, train_data, train_label, lambda_val)
+        w1, w2, training_set_accuracy, validation_set_accuracy, test_set_accuracy,precision,recall,f1measure,m_accuracy = runCode(initialWeights, args, opts,
+                                                                                            validation_data,
+                                                                                            validation_label, test_data,
+                                                                                            test_label)
+        if precision_max<precision:
+            precision_max=precision
+        if recall_max<recall:
+            recall_max=recall
+        if f1measure_max<f1measure:
+            f1measure_max=f1measure
+        if maccuracy_max<m_accuracy:
+            maccuracy_max=m_accuracy
+
+
+        # Print stuff to CSV
+        time_taken = (time.time() - code_start_time) / 60.0
+        if g_tr_accuracy < training_set_accuracy:
+            g_tr_accuracy=training_set_accuracy
+
+        # Get the most optimum lambda value
+        if max_accuracy < test_set_accuracy:
+            max_accuracy = test_set_accuracy
+            optimum_n_hidden = n_hidden
+            optimum_w1 = w1
+            optimum_w2 = w2
+            g_units=optimum_n_hidden
+
+        if g_accuracy < max_accuracy:
+            g_accuracy=max_accuracy
+
+        # Increase the n_hidden value
+        n_hidden += n_hidden_increment
+
+
     with open(csv_file_path, 'a') as csvfile:
-        writer = csv.DictWriter(csvfile,
-                                fieldnames=['lambda', 'n_hidden', 'training_set_accuracy', 'validation_set_accuracy',
-                                            'test_set_accuracy', 'runs', 'time'])
-        writer.writerow({'lambda': lambda_val, 'n_hidden': n_hidden, 'training_set_accuracy': training_set_accuracy,
-                         'validation_set_accuracy': validation_set_accuracy, 'test_set_accuracy': test_set_accuracy,
-                         'runs': run_count, 'time': time_taken})
+            writer = csv.DictWriter(csvfile,
+                                    fieldnames=['optimum_lambda', 'optimum_n_hidden', 'test_accuracy','training_accuracy'])
+            writer.writerow({'optimum_lambda': g_lambda, 'optimum_n_hidden': g_units,
+                             'test_accuracy': g_accuracy,'training_accuracy': g_tr_accuracy})
 
-    # Get the most optimum lambda value
-    if max_accuracy < test_set_accuracy:
-        max_accuracy = test_set_accuracy
-        optimum_n_hidden = n_hidden
-        optimum_w1 = w1
-        optimum_w2 = w2
+    precision_sum+=precision_max
+    f1measure_sum+=f1measure_max
+    recall_sum+=recall_max
+    maccuracy_sum+=maccuracy_max
+    i+=1
 
-    # Increase the n_hidden value
-    n_hidden += n_hidden_increment
+print("Time for processing: ", time.time() - start_time)
+print("Result file Generated Successfully")
+print "Precision",precision_sum/no_of_validation
+print "Recall",recall_sum/no_of_validation
+print "f1Measure",f1measure_sum/no_of_validation
+print "Accuracy",maccuracy_sum/no_of_validation
 
-print '\noptimum_n_hidden: ', optimum_n_hidden
-print 'optimum_lambda', optimum_lambda
-print 'optimum_w1', optimum_w1
-print 'optimum_w2', optimum_w2
-
-print("\nTotal time: ", (time.time() - overall_start_time) / 60)
-print("\n-------------------- End of code ------------------")
