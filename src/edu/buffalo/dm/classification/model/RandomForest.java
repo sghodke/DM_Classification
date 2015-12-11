@@ -35,18 +35,12 @@ public class RandomForest {
 	 */
 	public void generateRandomForest() {
 		DecisionTree dt;
-//		Map<Integer, List<List<Sample>>> crossSplitLists = ClassificationUtil.getCrossValidationSplit(samples, trees);
 		int splitIndex = samples.size() * 80 / 100;
 		List<Sample> trainSamples;
-//		List<Feature> features = ClassificationUtil.getFeatures();
-//		int splitIndex = features.size() * 1 / trees;
 		for(int i=0; i<trees; i++) {
-			//Collections.shuffle(samples);
+			Collections.shuffle(samples);
 			trainSamples = samples.subList(0, splitIndex);
-//			trainSamples = crossSplitLists.get(i).get(1);
-			dt = new DecisionTree(samples);
-//			List<Feature> featureSubset = features.subList(i*splitIndex, (i+1)*splitIndex);
-//			dt.setFeatures(featureSubset);
+			dt = new DecisionTree(trainSamples, 3, 1);
 			dt.setFeaturePercent(featurePercent);
 			Node root = dt.generateTree();
 			roots.add(root);

@@ -22,7 +22,8 @@ import edu.buffalo.dm.classification.util.Measure;
 
 public class DecisionTree {
 	
-	private static final int INTERVALS_FOR_CONTINUOUS_DATA = 3;
+	private static int intervals = 3;
+	private static int gini;
 	private Node root;
 	private static Set<Integer> classIds;
 	private List<Feature> features;
@@ -34,7 +35,7 @@ public class DecisionTree {
 	@SuppressWarnings("unused")
 	private int numberOfNodes;
 	
-	public DecisionTree(List<Sample> samples) {
+	public DecisionTree(List<Sample> samples, int numberOfIntervals, int isGini) {
 		features = ClassificationUtil.getFeatures();
 		//Collections.shuffle(features);
 		classIds = ClassificationUtil.getClassIds();
@@ -48,6 +49,8 @@ public class DecisionTree {
 		root.setClassIds(classIds);
 		root.setGiniIndex(Measure.getGiniRoot(samples));
 		root.setEntropy(Measure.getEntropyRoot(samples));
+		gini = isGini;
+		intervals = numberOfIntervals;
 	}
 	/**
 	 * Build tree and return node
@@ -85,7 +88,7 @@ public class DecisionTree {
 			if("STRING".equals(splitFeature.getType())) {
 				childNumber = ClassificationUtil.getSuitableInterval(sampleFeatureData, splitFeature.getCategories());
 			} else {
-				childNumber = ClassificationUtil.getSuitableInterval(Double.parseDouble(sampleFeatureData), splitFeature.getMin(), splitFeature.getMax(), INTERVALS_FOR_CONTINUOUS_DATA);
+				childNumber = ClassificationUtil.getSuitableInterval(Double.parseDouble(sampleFeatureData), splitFeature.getMin(), splitFeature.getMax(), intervals);
 			}
 			Node childNode = node.getChildren().get(childNumber);
 			if(childNode != null) {
@@ -172,9 +175,11 @@ public class DecisionTree {
 		//setChildrenMajority(node.getChildren(), childrenClassSplits);
 		
 		List<Node> children = new ArrayList<Node>(node.getChildren().values());
-		Collections.sort(children, new GiniComparator(samples.size()));
-//		Collections.sort(children, new EntropyComparator());
-		//Collections.sort(children, new MajorityComparator());
+		if(gini == 1) {
+			Collections.sort(children, new GiniComparator(samples.size()));
+		} else {
+			Collections.sort(children, new EntropyComparator());	
+		}
 		Iterator<Node> iterator = children.iterator();
 		
 		while(iterator.hasNext()) {
@@ -191,7 +196,6 @@ public class DecisionTree {
 	 * @param samples
 	 * @return
 	 */
-	@SuppressWarnings("unused")
 	private Feature getBestSplitFeature(Node node, List<Sample> samples) {
 	
 		Feature bestFeature = null;
@@ -212,18 +216,22 @@ public class DecisionTree {
 			}
 			childrenClassSplits = new HashMap<>();
 			Map<Integer, List<Sample>> splitLists = getSplitLists(samples, feature, childrenClassSplits);
-			double giniSplit = Measure.getGiniSplit(splitLists, childrenClassSplits);
-			if(giniSplit < gini) {
-				gini = giniSplit;
-				bestFeature = feature;
+			if(gini == 1) {
+				double giniSplit = Measure.getGiniSplit(splitLists, childrenClassSplits);
+				if(giniSplit < gini) {
+					gini = giniSplit;
+					bestFeature = feature;
+				}
 			}
-			/*
-			double entropySplit = Measure.getEntropySplit(splitLists, childrenClassSplits);
-			double gain = node.getEntropy() - entropySplit;
-			if(gain > infoGain) {
-				infoGain = gain;
-				bestFeature = feature;
-			}*/
+			else {
+				double entropySplit = Measure.getEntropySplit(splitLists, childrenClassSplits);
+				double gain = node.getEntropy() - entropySplit;
+				if(gain > infoGain) {
+					infoGain = gain;
+					bestFeature = feature;
+				}
+			}
+			
 		}
 		if(bestFeature != null) {
 			bestFeature.setSelected(true);
@@ -249,7 +257,7 @@ public class DecisionTree {
 			if(feature.getType() == "STRING") {
 				childNumber = ClassificationUtil.getSuitableInterval(featureData.toString(), feature.getCategories());
 			} else {
-				childNumber = ClassificationUtil.getSuitableInterval(Double.parseDouble(featureData.toString()), feature.getMin(), feature.getMax(), INTERVALS_FOR_CONTINUOUS_DATA);
+				childNumber = ClassificationUtil.getSuitableInterval(Double.parseDouble(featureData.toString()), feature.getMin(), feature.getMax(), intervals);
 			}
 			
 			List<Sample> childSamples;

@@ -2,9 +2,10 @@
  * Created by Siddharth Ghodke on Dec 3, 2015
  */
 package edu.buffalo.dm.classification;
-
+/*
 import java.io.BufferedReader;
 import java.io.FileReader;
+*/
 import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
@@ -17,6 +18,7 @@ import edu.buffalo.dm.classification.model.RandomForest;
 import edu.buffalo.dm.classification.util.ClassificationUtil;
 import edu.buffalo.dm.classification.util.Measure;
 import edu.buffalo.dm.classification.util.Parser;
+/*
 import weka.classifiers.Classifier;
 import weka.classifiers.Evaluation;
 import weka.classifiers.bayes.NaiveBayes;
@@ -30,7 +32,7 @@ import weka.classifiers.trees.J48;
 import weka.core.FastVector;
 import weka.core.Instance;
 import weka.core.Instances;
-
+*/
 public class Main {
 
 	private static List<Sample> samples;
@@ -73,7 +75,11 @@ public class Main {
 	        		System.exit(0);
 	        		
 	        	case "6":	// weka
-	        		weka();
+	        		//weka();
+	        		break;
+	        	
+	        	case "7":	// classify dataset3
+	        		classifyDataset3();
 	        		break;
 	        		
 	        	default:
@@ -91,7 +97,11 @@ public class Main {
 	 * Decision tree
 	 */
 	private static void runDT() {
-		long startTime = System.currentTimeMillis();
+		int gini = 1, intervals = 3;
+		System.out.println("Enter number of intervals for continuous data: ");
+		intervals = scanner.nextInt();
+		System.out.println("Select gini(1) or entropy(0): ");
+		gini = scanner.nextInt();
 		DecisionTree dt;
 		List<Sample> trainSamples, testSamples;
 		Node root;
@@ -102,11 +112,12 @@ public class Main {
 		double avgPrecision = 0d;
 		double avgRecall = 0d;
 		PerformanceMetric metric;
+		long startTime = System.currentTimeMillis();
 		for(int i: crossValidationSplits.keySet()) {
 			List<List<Sample>> validationSplit = crossValidationSplits.get(i);
 			trainSamples = validationSplit.get(0);
 			testSamples = validationSplit.get(1);
-			dt = new DecisionTree(trainSamples);
+			dt = new DecisionTree(trainSamples, intervals, gini);
 			root = dt.generateTree();
 			dt.classifySamples(root, testSamples);
 			metric = Measure.getPerformance(testSamples);
@@ -131,6 +142,11 @@ public class Main {
 	}
 	
 	private static void runRF() {
+		int trees = 10, featureSplitPecent = 30;
+		System.out.println("Enter number of trees: ");
+		trees = scanner.nextInt();
+		System.out.println("Enter percentage of features to select: ");
+		featureSplitPecent = scanner.nextInt();
 		long startTime = System.currentTimeMillis();
 		RandomForest rf;
 		List<Sample> trainSamples, testSamples;
@@ -145,7 +161,7 @@ public class Main {
 			List<List<Sample>> validationSplit = crossValidationSplits.get(i);
 			trainSamples = validationSplit.get(0);
 			testSamples = validationSplit.get(1);
-			rf = new RandomForest(trainSamples, 40, 10);
+			rf = new RandomForest(trainSamples, featureSplitPecent, trees);
 			rf.generateRandomForest();
 			rf.classifySamples(testSamples);
 			//display(testSamples);
@@ -170,6 +186,36 @@ public class Main {
 		System.out.println("==========================================================");
 	}
 	
+	private static void classifyDataset3() {
+		List<Sample> samples3 = Parser.readData(PATH + "3");
+		int k = 5;
+		Map<Integer, List<List<Sample>>> crossValidationSplits = ClassificationUtil.getCrossValidationSplit(samples3, k); 
+		List<Sample> trainSamples, testSamples;
+		RandomForest rf, bestRf = new RandomForest(samples3, 5, 30);
+		PerformanceMetric metric;
+		double bestAccuracy = -1d;
+		for(int i: crossValidationSplits.keySet()) {
+			List<List<Sample>> validationSplit = crossValidationSplits.get(i);
+			trainSamples = validationSplit.get(0);
+			testSamples = validationSplit.get(1);
+			rf = new RandomForest(trainSamples, 5, 30);
+			rf.generateRandomForest();
+			rf.classifySamples(testSamples);
+			//display(testSamples);
+			metric = Measure.getPerformance(testSamples);
+			double accuracy = metric.getAccuracy();
+			if(accuracy > bestAccuracy) {
+				bestAccuracy = accuracy;
+				bestRf = rf;
+			}
+			ClassificationUtil.resetData(samples3);
+		}
+		List<Sample> test = Parser.readData(PATH + "3test");
+		bestRf.classifySamples(test);
+		display(test);
+	}
+	
+/*	
 	private static void weka() {
 		try {
 			BufferedReader br = new BufferedReader(new FileReader(PATH + "weka3"));
@@ -178,14 +224,14 @@ public class Main {
 			Instances[][] split = crossValidationSplit(data, 5);
 			Instances[] trainingSplits = split[0];
 			Instances[] testingSplits = split[1];
-			Classifier model = new NaiveBayes();
-			//String[] options = {"-I","100","-K","200"};
+			Classifier model = new weka.classifiers.trees.RandomForest();
+//			String[] options = {"-I","100","-K","500"};
 			//String[] options = {"-M","5","-R","-N","10"};
 			//String[] options = {"-C","20","-N","2","-L",".3","-V", "3"};
 			//String[] options = {"-E", "rmse", "-I", "-X", "10"};
 //			String[] options = {"-D"};
 //			model.setOptions(options);
-			/*
+			
 			for(String s: model.getOptions()) {
 				System.out.println(s); 
 			}
@@ -198,21 +244,23 @@ public class Main {
 				System.out.println(1-eval.errorRate());
 			}
 			System.out.println("Accuracy: " + calculateAccuracy(predictions));
-			*/
-			System.out.println(data.numClasses());
-			br.close();
-			br = new BufferedReader(new FileReader(PATH + "weka3_test"));
-			Instances testData = new Instances(br);
-			testData.setClassIndex(1);
-			model.buildClassifier(data);
-			//testData.firstInstance().setMissing(7003);
-			System.out.println(testData.firstInstance().value(7003));
-			model.classifyInstance(testData.firstInstance());
 			
+			br.close();
+			br = new BufferedReader(new FileReader(PATH + "wekaTest"));
+			Instances testData = new Instances(br);
+			
+			//testData.at
+			model.buildClassifier(data);
+			//System.out.println(testData.firstInstance().value(7003));
+			//model.classifyInstance(testData.firstInstance());
+			
+			testData.setClassIndex(data.numAttributes()-1);
+			System.out.println(testData.classAttribute());
 			for(int i=0; i<testData.numInstances(); i++) {
 				Instance instance = testData.instance(i);
 				double pred = model.classifyInstance(instance);
-				System.out.println(pred);
+				System.out.println(Math.round(pred));
+				//System.out.println(testData.classAttribute().value((int)pred));
 			}
 //			model.classifyInstance(testData);
 			
@@ -243,10 +291,11 @@ public class Main {
  
 		return 100 * correct / predictions.size();
 	}
-	@SuppressWarnings("unused")
+*/
 	private static void display(List<Sample> samples) {
 		for(Sample sample: samples) {
-			System.out.println(sample.getSampleId() + ". " + sample.getGroundTruthClassId() + "\t" + sample.getClassId());
+//			System.out.println(sample.getSampleId() + ". " + sample.getGroundTruthClassId() + "\t" + sample.getClassId());
+			System.out.println(sample.getClassId());
 		}
 		System.out.println("---------");
 	}
