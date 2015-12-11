@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import edu.buffalo.dm.classification.bean.PerformanceMetric;
 import edu.buffalo.dm.classification.bean.Sample;
 
 public class Measure {
@@ -35,14 +36,7 @@ public class Measure {
 		return accuracy;
 	}
 	
-	/**
-	 * Modified fMeasure (similar to accuracy) based on provided datasets
-	 * (Not foolproof or general)
-	 * @param samples
-	 * @return
-	 */
-	public static double fMeasure(List<Sample> samples) {
-		double fMeasure = -1d;
+	public static void buildConfusionMatrix(List<Sample> samples) {
 		int classes = ClassificationUtil.getClassIds().size();
 		confusionMatrix = new int[classes][classes];
 		for(int i=0; i<classes; i++) {
@@ -55,22 +49,52 @@ public class Measure {
 			int classId = sample.getClassId();
 			confusionMatrix[groundTruthClassId][classId]++;
 		}
-		
-		int a, b, c;
-		a = b = c = 0;
-		for(int i=0; i<classes; i++) {
-			for(int j=0; j<classes; j++) {
-				if(i == j) {
-					a += confusionMatrix[i][j];
+	}
+	
+	/**
+	 * Get classification performance parameters for provided samples
+	 * @param samples
+	 * @return
+	 */
+	public static PerformanceMetric getPerformance(List<Sample> samples) {
+		buildConfusionMatrix(samples);
+		double fMeasure = 0d;
+		double accuracy = 0d;
+		double precision = 0d;
+		double recall = 0d;
+		int classes = ClassificationUtil.getClassIds().size();
+		int tp, fn, fp, tn;
+		for(int k=0; k<classes; k++) {
+			tp = fn = fp = tn = 0;
+			for(int i=0; i<classes; i++) {
+				if(i == k) {
+					tp += confusionMatrix[k][i];
 				} else {
-					b += confusionMatrix[i][j];
-					c += confusionMatrix[j][i];
+					fn += confusionMatrix[k][i];
+					fp += confusionMatrix[i][k];
 				}
 			}
+			tn = samples.size() - (tp+fn+fp);
+			double classAccuracy = (double)(tp+tn) / (tp+fn+fp+tn);
+			double classPrecision = (double)(tp) / (tp+fp);
+			double classRecall = (double)(tp) / (tp+fn);
+			double classFMeasure = (double)(tp+tp) / (tp+tp+fp+fn);
+			if(tp == 0) {
+				classPrecision = classRecall = classFMeasure = 0d;
+			}
+			accuracy += classAccuracy;
+			precision += classPrecision;
+			recall += classRecall;
+			fMeasure += classFMeasure;
+			
 		}
-		fMeasure = (double)a / (a+b+c);
-		return fMeasure;
+		accuracy /= classes;
+		precision /= classes;
+		recall /= classes;
+		fMeasure /= classes;
 		
+		PerformanceMetric metric = new PerformanceMetric(accuracy, fMeasure, precision, recall);
+		return metric;
 	}
 	
 
@@ -94,7 +118,7 @@ public class Measure {
 	
 	/**
 	 * Calculate gini index of the given node
-	 * @param n
+	 * @param n - total samples at node
 	 * @param classIdsSet
 	 * @return
 	 */
@@ -127,5 +151,64 @@ public class Measure {
 		}
 		double giniRoot = getGiniNode(samples.size(), classIdsSet);
 		return giniRoot;
+	}
+	
+	/**
+	 * Calculate entropy of the split
+	 * @param childrenSamplesCount
+	 * @param childrenClassSplits
+	 * @return
+	 */
+	public static double getEntropySplit(Map<Integer, List<Sample>> childrenSamplesCount, Map<Integer, Map<Integer, Integer>> childrenClassSplits) {
+		double entropy = 0d;
+		int totalSamples = 0;
+		for(int i: childrenSamplesCount.keySet()) {
+			int n = childrenSamplesCount.get(i).size();
+			Map<Integer, Integer> classIdsSet = childrenClassSplits.get(i);
+			entropy += n * getEntropyNode(n, classIdsSet);
+			totalSamples += n;
+		}
+		return (entropy / totalSamples);
+	}
+	
+	/**
+	 * Calculate entropy of a node
+	 * @param n - total samples at node
+	 * @param classIdsSet
+	 * @return
+	 */
+	public static double getEntropyNode(int n, Map<Integer, Integer> classIdsSet) {
+		double entropy = -1d;
+		double sum = 0d;
+		for(Integer classId: classIdsSet.keySet()) {
+			int count = classIdsSet.get(classId);
+			if(count == 0) {
+				continue;
+			}
+			double classProb = (double) count/n;
+			sum += classProb * Math.log(classProb) / Math.log(2);
+		}
+		entropy = -sum;
+		return entropy;
+	}
+	
+	/**
+	 * Calculate gini index of root node
+	 * @param samples
+	 * @return
+	 */
+	public static double getEntropyRoot(List<Sample> samples) {
+		Map<Integer, Integer> classIdsSet = new HashMap<Integer, Integer>();
+		for(Sample sample: samples) {
+			int classId = sample.getGroundTruthClassId();
+			Integer count;
+			if((count = classIdsSet.get(classId)) == null) {
+				classIdsSet.put(classId, 1);
+			} else {
+				classIdsSet.put(classId, ++count);
+			}
+		}
+		double entropyRoot = getEntropyNode(samples.size(), classIdsSet);
+		return entropyRoot;
 	}
 }

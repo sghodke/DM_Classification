@@ -3,7 +3,6 @@
  */
 package edu.buffalo.dm.classification.bean;
 
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -20,8 +19,9 @@ public class Node {
 	private Map<Integer, Node> children;
 	private Set<Integer> classIds;
 	private Feature splitFeature;
-	double giniIndex;
-	double maxMajority;
+	private double giniIndex;
+	private double entropy;
+	private double maxMajority;
 	
 	public Node(List<Sample> samples) {
 		setSamples(samples);
@@ -35,12 +35,6 @@ public class Node {
 	public void addChild(int n, Node child) {
 		children.put(n, child);
 	}
-	/*
-	public void setChildren(int n) {
-		for(int i=0; i<n; i++) {
-			children.add(new Node());
-		}
-	}*/
 	
 	public List<Sample> getSamples() {
 		return samples;
@@ -84,20 +78,10 @@ public class Node {
 	public void setMaxMajority(double maxMajority) {
 		this.giniIndex = maxMajority;
 	}
-}
-
-/**
- * Add child nodes based on gini index
- * (unused for now)
- */
-class GiniComparator implements Comparator<Node> {
-	@Override
-	public int compare(Node n1, Node n2) {
-		if(n1.getGiniIndex() > n2.getGiniIndex()) {
-			return 1;
-		} else if(n1.getGiniIndex() < n2.getGiniIndex()) {
-			return -1;
-		}
-		return 0;
+	public double getEntropy() {
+		return entropy;
+	}
+	public void setEntropy(double entropy) {
+		this.entropy = entropy;
 	}
 }

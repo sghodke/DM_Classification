@@ -21,27 +21,41 @@ import edu.buffalo.dm.classification.util.ClassificationUtil;
 import edu.buffalo.dm.classification.util.Measure;
 
 public class DecisionTree {
-	// set of ground truth class ids
+	
+	private static final int INTERVALS_FOR_CONTINUOUS_DATA = 3;
+	private Node root;
 	private static Set<Integer> classIds;
-	private static List<Feature> features;
-	
-	private static int totalSamples;
-	private static int treeDepth;
+	private List<Feature> features;
+	private List<Sample> samples;
+	private int totalSamples;
+	private int treeDepth;
+	private int featurePercent;
 	// testing purpose
-	private static int numberOfNodes;
+	@SuppressWarnings("unused")
+	private int numberOfNodes;
 	
-	public Node generateTree(List<Sample> samples) {
+	public DecisionTree(List<Sample> samples) {
+		features = ClassificationUtil.getFeatures();
+		//Collections.shuffle(features);
+		classIds = ClassificationUtil.getClassIds();
+		this.samples = samples;
 		numberOfNodes = 1;
 		treeDepth = 1;
 		totalSamples = samples.size();
-		features = ClassificationUtil.getFeatures();
-		classIds = ClassificationUtil.getClassIds();
-		Node root = new Node(samples);
+		featurePercent = -1;
+		root = new Node(samples);
 		root.setParent(null);
 		root.setClassIds(classIds);
 		root.setGiniIndex(Measure.getGiniRoot(samples));
+		root.setEntropy(Measure.getEntropyRoot(samples));
+	}
+	/**
+	 * Build tree and return node
+	 * @return
+	 */
+	public Node generateTree() {
 		root = buildTree(root, samples);
-		System.out.println("Total nodes: " + numberOfNodes);
+		//System.out.println("Total nodes: " + numberOfNodes);
 		return root;
 	}
 
@@ -60,13 +74,12 @@ public class DecisionTree {
 	 * @param node
 	 * @param sample
 	 */
-	private void classifySample(Node node, Sample sample) {
+	public static void classifySample(Node node, Sample sample) {
 		if(node == null) {
 			return;
 		}
 		while(node.getChildren() != null && node.getChildren().keySet().size() != 0) {
 			Feature splitFeature = node.getSplitFeature();
-			//Data splitCriteria = splitFeature.getSplitCriteria();
 			int childNumber = 0;
 			String sampleFeatureData = sample.getFeatures().get(splitFeature.getFeatureId()).toString();
 			if("STRING".equals(splitFeature.getType())) {
@@ -91,7 +104,7 @@ public class DecisionTree {
 	 * @param samples
 	 * @return
 	 */
-	private static Node buildTree(Node node, List<Sample> samples) {
+	private Node buildTree(Node node, List<Sample> samples) {
 		
 		// restrict height of tree
 		if(treeDepth++ > 4) {
@@ -138,6 +151,8 @@ public class DecisionTree {
 				smallerGini = true;
 			}
 			child.setGiniIndex(childGini);
+			double childEntropy = Measure.getEntropyNode(childSamples.size(), childrenClassSplits.get(i));
+			child.setEntropy(childEntropy);
 			Set<Integer> childClassIds = new HashSet<>();
 			for(Sample sample: childSamples) {
 				childClassIds.add(sample.getGroundTruthClassId());
@@ -158,16 +173,10 @@ public class DecisionTree {
 		
 		List<Node> children = new ArrayList<Node>(node.getChildren().values());
 		Collections.sort(children, new GiniComparator(samples.size()));
+//		Collections.sort(children, new EntropyComparator());
 		//Collections.sort(children, new MajorityComparator());
 		Iterator<Node> iterator = children.iterator();
 		
-		/*while(iterator.hasNext()) {
-			Node child = iterator.next();
-			displayChildInfo(child);
-		}
-		System.out.println("========================================================\n");
-		iterator = children.iterator();
-		*/
 		while(iterator.hasNext()) {
 			Node child = iterator.next();
 			buildTree(child, child.getSamples());
@@ -182,13 +191,21 @@ public class DecisionTree {
 	 * @param samples
 	 * @return
 	 */
-	private static Feature getBestSplitFeature(Node node, List<Sample> samples) {
+	@SuppressWarnings("unused")
+	private Feature getBestSplitFeature(Node node, List<Sample> samples) {
 	
 		Feature bestFeature = null;
 		double gini = Double.MAX_VALUE;
+		double infoGain = Double.MIN_VALUE;
+		
+		int featureSet = features.size();
+		if(featurePercent != -1) {
+			featureSet = features.size() * featurePercent / 100;
+			Collections.shuffle(features);
+		}
 		
 		Map<Integer, Map<Integer, Integer>> childrenClassSplits;
-		for(int i=0; i<features.size(); i++) {
+		for(int i=0; i<featureSet; i++) {
 			Feature feature = features.get(i);
 			if(feature.isSelected()) {
 				continue;
@@ -200,6 +217,13 @@ public class DecisionTree {
 				gini = giniSplit;
 				bestFeature = feature;
 			}
+			/*
+			double entropySplit = Measure.getEntropySplit(splitLists, childrenClassSplits);
+			double gain = node.getEntropy() - entropySplit;
+			if(gain > infoGain) {
+				infoGain = gain;
+				bestFeature = feature;
+			}*/
 		}
 		if(bestFeature != null) {
 			bestFeature.setSelected(true);
@@ -252,46 +276,6 @@ public class DecisionTree {
 	}
 	
 	/**
-	 * Get best split value for given feature id
-	 * @param samples
-	 * @param featureId
-	 * @param classIdsSet1
-	 * @param classIdsSet2
-	 * @return
-	 */
-	/*
-	private static double getBestSplitValue(List<Sample> samples, int featureId) {
-		Feature feature = features.get(featureId);
-		double min = feature.getMin(), max = feature.getMax();
-		double diff = max - min;
-		double incr = diff / 6;
-		Map<Integer, Integer> classIdsSet1, classIdsSet2;
-		List<Sample> set1, set2;
-		double gini = Double.MAX_VALUE;
-		double optimumSplitValue = min;
-		for(int i=0; i<5; i++) {
-			classIdsSet1 = new HashMap<>();
-			classIdsSet2 = new HashMap<>();
-			double splitValue = min + incr;
-			List<List<Sample>> splitLists = getSplitLists(samples, splitValue, featureId, classIdsSet1, classIdsSet2);
-			set1 = new ArrayList<Sample>();
-			set2 = new ArrayList<Sample>();
-			if(splitLists.size() > 1) {
-				set1 = splitLists.get(0);
-				set2 = splitLists.get(1);
-			}
-			double giniSplit = getGiniSplit(set1.size(), set2.size(), classIdsSet1, classIdsSet2);
-			if(giniSplit < gini) {
-				optimumSplitValue = splitValue;
-				gini = giniSplit;
-			}
-		}
-		return optimumSplitValue;
-	}
-	*/
-	
-	
-	/**
 	 * Calculate best matching class for given node to classify sample accordingly
 	 * @param node
 	 * @return
@@ -337,6 +321,21 @@ public class DecisionTree {
 	}
 	
 	/**
+	 * Comparator to sort children in descending order based on weighted gini index
+	 */
+	static class EntropyComparator implements Comparator<Node> {
+		@Override
+		public int compare(Node n1, Node n2) {
+			if(n1.getSamples().size() * n1.getGiniIndex() > n2.getSamples().size() * n2.getGiniIndex()) {
+				return -1;
+			} else if(n1.getSamples().size() * n1.getGiniIndex() < n2.getSamples().size() * n2.getGiniIndex()) {
+				return 1;
+			}
+			return 0;
+		}
+	}
+	
+	/**
 	 * Comparator to sort children in ascending order based on majority class samples
 	 */
 	static class MajorityComparator implements Comparator<Node> {
@@ -351,30 +350,12 @@ public class DecisionTree {
 		}
 	}
 	
-	@SuppressWarnings("unused")
-	private static void setChildrenMajority(Map<Integer, Node> children, Map<Integer, Map<Integer, Integer>> childrenClassSplits) {
-		double maxMajority = -1d;
-		Node child;
-		Map<Integer, Integer> childClassSplits;
-		for(int childId: children.keySet()) {
-			child = children.get(childId);
-			double childSamples = child.getSamples().size();
-			childClassSplits = childrenClassSplits.get(childId);
-			for(int classId: childClassSplits.keySet()) {
-				int classShare = childClassSplits.get(classId);
-				double classPercent = (double) classShare / childSamples;
-				if(classPercent > maxMajority) {
-					maxMajority = classPercent;
-				}
-			}
-			child.setMaxMajority(maxMajority);
-		}
-	}
-
-	@SuppressWarnings("unused")
-	private static void displayChildInfo(Node node) {
-		System.out.println(node.getSamples().size() + "\t" + node.getGiniIndex());
+	public void setFeaturePercent(int featurePercent) {
+		this.featurePercent = featurePercent;
 	}
 	
-	private static final int INTERVALS_FOR_CONTINUOUS_DATA = 4;
+	public void setFeatures(List<Feature> features) {
+		this.features = features;
+	}
+	
 }

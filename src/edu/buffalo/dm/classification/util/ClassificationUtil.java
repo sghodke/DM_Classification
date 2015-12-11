@@ -15,6 +15,7 @@ import edu.buffalo.dm.classification.adt.Data;
 import edu.buffalo.dm.classification.adt.DoubleData;
 import edu.buffalo.dm.classification.adt.StringData;
 import edu.buffalo.dm.classification.bean.Feature;
+import edu.buffalo.dm.classification.bean.PerformanceMetric;
 import edu.buffalo.dm.classification.bean.Sample;
 
 /**
@@ -94,7 +95,7 @@ public class ClassificationUtil {
 		
 		Map<Integer, List<List<Sample>>> splitSamplesMap = new HashMap<>();
 		int totalSamples = samples.size();
-		int testSamples = new Double(totalSamples * 0.1d).intValue();
+		int testSamples = new Double(totalSamples * (double)1/numOfFolds).intValue();
 		List<Sample> trainSet, testSet;
 		List<List<Sample>> validationSplitLists;
 		for(int i=0; i<numOfFolds; i++) {
@@ -110,7 +111,10 @@ public class ClassificationUtil {
 	}
 	
 	
-	
+	public static PerformanceMetric getPerformanceMetrics(List<Sample> samples) {
+		
+		return null;
+	}
 	
 	/**
 	 * Get suitable interval for given value, based upon the number of intervals
