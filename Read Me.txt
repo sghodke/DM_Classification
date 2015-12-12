@@ -1,0 +1,4 @@
+Naive Bayes, Decision Trees and Random Forests have been implemented in Java and teh entire code is in source folder. Neural networks is implemented in Python and its in the Neural Network folder.
+
+TO Run the Java code, run teh main.java file.
+To run the python code, the instructions are in the read me file in the Neural Network folder.
