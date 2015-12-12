@@ -1,0 +1,9 @@
+Run the script.py file from the project.
+script takes file-name as an input. For each dataset precision, recall,f1-measure and accuracy will be printed.
+Also the optimimum parameters will be written in a csv file known as backprop_results.csv
+All the input files are expected to be in the same working directory.
+
+
+For dataset-3
+script-1 parses the files required for dataset3 and does the prediction using thg various classificaion techniques
+just run the script it will print the results
