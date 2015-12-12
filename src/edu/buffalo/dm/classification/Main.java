@@ -14,6 +14,7 @@ import edu.buffalo.dm.classification.bean.Node;
 import edu.buffalo.dm.classification.bean.PerformanceMetric;
 import edu.buffalo.dm.classification.bean.Sample;
 import edu.buffalo.dm.classification.model.DecisionTree;
+import edu.buffalo.dm.classification.model.NaiveBayesClassifier;
 import edu.buffalo.dm.classification.model.RandomForest;
 import edu.buffalo.dm.classification.util.ClassificationUtil;
 import edu.buffalo.dm.classification.util.Measure;
@@ -55,6 +56,7 @@ public class Main {
 	        	switch(choice) {
 	        	
 	        	case "1":	// Naive Bayes
+					runNaiveBayes();
 	        		break;
 	        		
 	        	case "3":	// ANN
@@ -131,11 +133,10 @@ public class Main {
 		avgFMeasure /= k;
 		avgPrecision /= k;
 		avgRecall /= k;
-		System.out.printf("\nAverage accuracy: %.2f", avgAccuracy);
-		System.out.printf("\nAverage fMeasure: %.2f", avgFMeasure);
-		System.out.printf("\nAverage Precision: %.2f", avgPrecision);
-		System.out.printf("\nAverage recall: %.2f\n", avgRecall);
-		
+		System.out.printf("\nAverage accuracy: %.5f", avgAccuracy);
+		System.out.printf("\nAverage fMeasure: %.5f", avgFMeasure);
+		System.out.printf("\nAverage Precision: %.5f", avgPrecision);
+		System.out.printf("\nAverage recall: %.5f\n", avgRecall);
 		long endTime = System.currentTimeMillis();
 		System.out.println("Execution Time: " + ((double)(endTime - startTime)/1000) + " seconds");
 		System.out.println("==========================================================");
@@ -176,11 +177,10 @@ public class Main {
 		avgFMeasure /= k;
 		avgPrecision /= k;
 		avgRecall /= k;
-		System.out.printf("\nAverage accuracy: %.2f", avgAccuracy);
-		System.out.printf("\nAverage fMeasure: %.2f", avgFMeasure);
-		System.out.printf("\nAverage Precision: %.2f", avgPrecision);
-		System.out.printf("\nAverage recall: %.2f\n", avgRecall);
-
+		System.out.printf("\nAverage accuracy: %.5f", avgAccuracy);
+		System.out.printf("\nAverage fMeasure: %.5f", avgFMeasure);
+		System.out.printf("\nAverage Precision: %.5f", avgPrecision);
+		System.out.printf("\nAverage recall: %.5f\n", avgRecall);
 		long endTime = System.currentTimeMillis();
 		System.out.println("Execution Time: " + ((double)(endTime - startTime)/1000) + " seconds");
 		System.out.println("==========================================================");
@@ -214,84 +214,50 @@ public class Main {
 		bestRf.classifySamples(test);
 		display(test);
 	}
-	
-/*	
-	private static void weka() {
-		try {
-			BufferedReader br = new BufferedReader(new FileReader(PATH + "weka3"));
-			Instances data = new Instances(br);
-			data.setClassIndex(data.numAttributes() - 1);
-			Instances[][] split = crossValidationSplit(data, 5);
-			Instances[] trainingSplits = split[0];
-			Instances[] testingSplits = split[1];
-			Classifier model = new weka.classifiers.trees.RandomForest();
-//			String[] options = {"-I","100","-K","500"};
-			//String[] options = {"-M","5","-R","-N","10"};
-			//String[] options = {"-C","20","-N","2","-L",".3","-V", "3"};
-			//String[] options = {"-E", "rmse", "-I", "-X", "10"};
-//			String[] options = {"-D"};
-//			model.setOptions(options);
-			
-			for(String s: model.getOptions()) {
-				System.out.println(s); 
-			}
-			FastVector predictions = new FastVector();
-			for(int i=0; i<trainingSplits.length; i++) {
-				Evaluation eval = new Evaluation(trainingSplits[i]);
-				model.buildClassifier(trainingSplits[i]);
-				eval.evaluateModel(model, testingSplits[i]);
-				predictions.appendElements(eval.predictions());
-				System.out.println(1-eval.errorRate());
-			}
-			System.out.println("Accuracy: " + calculateAccuracy(predictions));
-			
-			br.close();
-			br = new BufferedReader(new FileReader(PATH + "wekaTest"));
-			Instances testData = new Instances(br);
-			
-			//testData.at
-			model.buildClassifier(data);
-			//System.out.println(testData.firstInstance().value(7003));
-			//model.classifyInstance(testData.firstInstance());
-			
-			testData.setClassIndex(data.numAttributes()-1);
-			System.out.println(testData.classAttribute());
-			for(int i=0; i<testData.numInstances(); i++) {
-				Instance instance = testData.instance(i);
-				double pred = model.classifyInstance(instance);
-				System.out.println(Math.round(pred));
-				//System.out.println(testData.classAttribute().value((int)pred));
-			}
-//			model.classifyInstance(testData);
-			
-		} catch (Exception e) {
-			e.printStackTrace();
+
+	/**
+	 * Naive Bayes
+	 */
+	private static void runNaiveBayes() {
+		long startTime = System.currentTimeMillis();
+		NaiveBayesClassifier naiveBayesClassifier;
+		List<Sample> trainSamples, testSamples;
+		double avgAccuracy = 0d;
+		double avgFMeasure = 0d;
+		double avgPrecision = 0d;
+		double avgRecall = 0d;
+		PerformanceMetric metric;
+		int k = 10;
+		System.out.println();
+		Map<Integer, List<List<Sample>>> crossValidationSplits = ClassificationUtil.getCrossValidationSplit(samples, k);
+		for(int i: crossValidationSplits.keySet()) {
+			List<List<Sample>> validationSplit = crossValidationSplits.get(i);
+			trainSamples = validationSplit.get(0);
+			testSamples = validationSplit.get(1);
+			naiveBayesClassifier = new NaiveBayesClassifier(trainSamples, testSamples);
+			naiveBayesClassifier.assignClassesToTestSamples();
+			metric = Measure.getPerformance(testSamples);
+			avgAccuracy += metric.getAccuracy();
+			avgFMeasure += metric.getFmeasure();
+			avgPrecision += metric.getPrecision();
+			avgRecall += metric.getRecall();
+			ClassificationUtil.resetData(samples);
+			ClassificationUtil.resetData(samples);
 		}
+		avgAccuracy /= k;
+		avgFMeasure /= k;
+		avgPrecision /= k;
+		avgRecall /= k;
+		System.out.printf("\nAverage accuracy: %.5f", avgAccuracy);
+		System.out.printf("\nAverage fMeasure: %.5f", avgFMeasure);
+		System.out.printf("\nAverage Precision: %.5f", avgPrecision);
+		System.out.printf("\nAverage recall: %.5f\n", avgRecall);
+
+		long endTime = System.currentTimeMillis();
+		System.out.println("Execution Time: " + ((double)(endTime - startTime)/1000) + " seconds");
+		System.out.println("==========================================================");
+
 	}
-	public static Instances[][] crossValidationSplit(Instances data, int numberOfFolds) {
-		Instances[][] split = new Instances[2][numberOfFolds];
- 
-		for (int i = 0; i < numberOfFolds; i++) {
-			split[0][i] = data.trainCV(numberOfFolds, i);
-			split[1][i] = data.testCV(numberOfFolds, i);
-		}
- 
-		return split;
-	}
-	
-	public static double calculateAccuracy(FastVector predictions) {
-		double correct = 0;
- 
-		for (int i = 0; i < predictions.size(); i++) {
-			NominalPrediction np = (NominalPrediction) predictions.elementAt(i);
-			if (np.predicted() == np.actual()) {
-				correct++;
-			}
-		}
- 
-		return 100 * correct / predictions.size();
-	}
-*/
 	private static void display(List<Sample> samples) {
 		for(Sample sample: samples) {
 //			System.out.println(sample.getSampleId() + ". " + sample.getGroundTruthClassId() + "\t" + sample.getClassId());
